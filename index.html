@@ -665,18 +665,17 @@
     const primaryLabel = document.getElementById('primaryDownloadLabel');
     const osHint = document.getElementById('osHint');
 
+    primaryBtn.href = '#download';
+    primaryBtn.removeAttribute('download');
+
     if (isMac) {
       document.getElementById('cardMac').classList.add('recommended');
       document.getElementById('pillMac').textContent = 'Recommended for your Mac';
-      primaryBtn.href = 'downloads/Audio-Measure-by-Lunar-1.0.0-universal.dmg';
-      primaryBtn.setAttribute('download', '');
       primaryLabel.textContent = 'Download for macOS (.dmg)';
       osHint.textContent = 'Detected macOS · Universal build for Apple Silicon (M1–M4) & Intel';
     } else if (isWin) {
       document.getElementById('cardWin').classList.add('recommended');
       document.getElementById('pillWin').textContent = 'Recommended for your PC';
-      primaryBtn.href = 'downloads/Audio-Measure-by-Lunar-Setup-1.0.0.exe';
-      primaryBtn.setAttribute('download', '');
       primaryLabel.textContent = 'Download for Windows (.exe)';
       osHint.textContent = 'Detected Windows · 64-bit Installer for Windows 10 & 11';
     }
