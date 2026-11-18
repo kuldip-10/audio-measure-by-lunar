@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audio Measure by Lunar — Real-Time RTA, Feedback Detector &amp; Transfer Function</title>
+<meta name="description" content="Professional real-time audio analyzer, acoustic feedback detector, and dual-channel transfer function measurement suite for macOS and Windows.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #000000;
+    --surface: #070b0c;
+    --ctl: #0f1618;
+    --line: #1b2527;
+    --fg: #e9f5f4;
+    --mut: #7e908e;
+    --acc: #19d3c5;
+    --acc-dim: rgba(25, 211, 197, 0.12);
+    --red: #ff3b30;
+    --amber: #ffd60a;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Barlow', system-ui, -apple-system, sans-serif;
+    line-height: 1.5;
+  }
+
+  body {
+    min-height: 100vh;
+    overflow-x: hidden;
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(25, 211, 197, 0.12), transparent 65%),
+      var(--bg);
+  }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* Navigation */
+  header {
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(12px);
+  }
+
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 68px;
+    gap: 16px;
+  }
+
+  .brand {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+    text-decoration: none;
+    color: var(--fg);
+  }
+
+  .brand small {
+    font-size: 11px;
+    color: var(--mut);
+    letter-spacing: 0.04em;
+  }
+
+  .brand b {
+    font: 800 22px 'Barlow Condensed', sans-serif;
+    letter-spacing: 0.02em;
+  }
+
+  .brand .by {
+    color: var(--acc);
+    font-weight: 600;
+    font-size: 0.75em;
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .nav-links a {
+    color: var(--mut);
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: 500;
+    transition: color 0.15s;
+  }
+
+  .nav-links a:hover {
+    color: var(--fg);
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 13px 22px;
+    border-radius: 8px;
+    font: 600 16px 'Barlow', system-ui, sans-serif;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid var(--line);
+    background: var(--ctl);
+    color: var(--fg);
+    transition: transform 0.12s, border-color 0.15s, background 0.15s;
+  }
+
+  .btn:hover {
+    border-color: var(--acc);
+    transform: translateY(-1px);
+  }
+
+  .btn-primary {
+    background: var(--acc);
+    color: #081211;
+    border-color: transparent;
+    font-weight: 700;
+  }
+
+  .btn-primary:hover {
+    background: #22e3d4;
+    border-color: transparent;
+  }
+
+  .btn svg {
+    width: 19px;
+    height: 19px;
+    flex: none;
+  }
+
+  /* Hero */
+  .hero {
+    padding: 72px 0 48px;
+    text-align: center;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 14px;
+    border-radius: 99px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--acc);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .badge i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--acc);
+    box-shadow: 0 0 8px var(--acc);
+  }
+
+  h1 {
+    font: 800 clamp(42px, 6.5vw, 76px)/0.98 'Barlow Condensed', sans-serif;
+    letter-spacing: 0.01em;
+    max-width: 820px;
+    margin: 0 auto 18px;
+  }
+
+  h1 span {
+    color: var(--acc);
+  }
+
+  .lead {
+    color: var(--mut);
+    font-size: clamp(17px, 2.2vw, 20px);
+    max-width: 640px;
+    margin: 0 auto 34px;
+  }
+
+  .cta-group {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .meta-note {
+    font-size: 13px;
+    color: var(--mut);
+  }
+
+  /* App Preview Window */
+  .preview-shell {
+    margin: 48px auto 0;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(25, 211, 197, 0.08);
+    text-align: left;
+  }
+
+  .win-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+    background: #050809;
+  }
+
+  .dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+  }
+
+  .dot.r { background: #ff5f56; }
+  .dot.y { background: #ffbd2e; }
+  .dot.g { background: #27c93f; }
+
+  .win-title {
+    margin-left: 8px;
+    font: 700 14px 'Barlow Condensed', sans-serif;
+    color: var(--mut);
+    letter-spacing: 0.04em;
+  }
+
+  .win-tabs {
+    margin-left: auto;
+    display: flex;
+    gap: 6px;
+  }
+
+  .win-tab {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--mut);
+    padding: 4px 12px;
+    border-radius: 6px;
+    font: 600 12px 'Barlow', sans-serif;
+    cursor: pointer;
+  }
+
+  .win-tab.active {
+    background: var(--acc-dim);
+    border-color: var(--acc);
+    color: var(--acc);
+  }
+
+  .mock-screen {
+    padding: 20px;
+    background: #000;
+  }
+
+  .mock-readout {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 16px;
+  }
+
+  .mock-big {
+    font: 800 clamp(36px, 5vw, 56px)/1 'Barlow Condensed', sans-serif;
+    color: var(--fg);
+  }
+
+  .mock-big small {
+    font-size: 0.45em;
+    color: var(--acc);
+    margin-left: 4px;
+  }
+
+  .mock-sub {
+    color: var(--mut);
+    font-size: 14px;
+  }
+
+  #demoCanvas {
+    width: 100%;
+    height: 220px;
+    display: block;
+  }
+
+  /* Features Grid */
+  section {
+    padding: 72px 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .sec-head {
+    margin-bottom: 40px;
+  }
+
+  .sec-head h2 {
+    font: 800 clamp(30px, 4vw, 44px)/1.05 'Barlow Condensed', sans-serif;
+    margin-bottom: 8px;
+  }
+
+  .sec-head p {
+    color: var(--mut);
+    font-size: 17px;
+    max-width: 600px;
+  }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    gap: 20px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .card-tag {
+    color: var(--acc);
+    font: 700 13px 'Barlow Condensed', sans-serif;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .card h3 {
+    font: 700 22px 'Barlow Condensed', sans-serif;
+  }
+
+  .card p {
+    color: var(--mut);
+    font-size: 15px;
+  }
+
+  /* Download Cards */
+  .dl-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+    gap: 20px;
+  }
+
+  .dl-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .dl-card.recommended {
+    border-color: var(--acc);
+    box-shadow: 0 0 0 1px var(--acc);
+  }
+
+  .dl-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .dl-top h3 {
+    font: 800 26px 'Barlow Condensed', sans-serif;
+  }
+
+  .pill {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 99px;
+    background: var(--ctl);
+    color: var(--mut);
+    border: 1px solid var(--line);
+  }
+
+  .dl-card.recommended .pill {
+    background: var(--acc-dim);
+    color: var(--acc);
+    border-color: var(--acc);
+  }
+
+  .dl-specs {
+    list-style: none;
+    color: var(--mut);
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .dl-specs li::before {
+    content: "— ";
+    color: var(--acc);
+  }
+
+  .dl-actions {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  details.help {
+    margin-top: 24px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px 20px;
+  }
+
+  details.help summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--acc);
+  }
+
+  details.help .help-body {
+    margin-top: 12px;
+    color: var(--mut);
+    font-size: 14px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+  }
+
+  details.help strong {
+    color: var(--fg);
+  }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 32px 0;
+    color: var(--mut);
+    font-size: 14px;
+  }
+
+  .foot-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  @media (max-width: 640px) {
+    .nav-links a.hide-sm { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a href="#" class="brand">
+      <small>Developed by Kuldeep</small>
+      <b>Audio Measure <span class="by">by Lunar</span></b>
+    </a>
+    <nav class="nav-links">
+      <a href="#features" class="hide-sm">Features</a>
+      <a href="#download" class="hide-sm">Download</a>
+      <a href="#download" class="btn btn-primary" style="padding: 9px 16px; font-size: 14px;">Get the App</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <div class="badge"><i></i> v1.0.0 &middot; Offline-Ready Desktop Suite</div>
+    <h1>Precision Room Tuning &amp; <span>Feedback Detection</span></h1>
+    <p class="lead">
+      Real-time 1/24-octave RTA, sub-second acoustic feedback tracking, and dual-channel transfer function analysis with phase, coherence, and impulse response.
+    </p>
+
+    <div class="cta-group" id="heroCtas">
+      <!-- Replace the href values below with your actual GitHub Release / CDN file URLs -->
+      <a id="primaryDownloadBtn" href="#download" class="btn btn-primary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+        <span id="primaryDownloadLabel">Download for Desktop</span>
+      </a>
+      <a href="#download" class="btn">All Platforms (macOS &amp; Windows)</a>
+    </div>
+    <p class="meta-note" id="osHint">Free &amp; self-contained &middot; Works completely offline at live venues</p>
+
+    <!-- Interactive Preview -->
+    <div class="preview-shell">
+      <div class="win-bar">
+        <span class="dot r"></span>
+        <span class="dot y"></span>
+        <span class="dot g"></span>
+        <span class="win-title">Audio Measure by Lunar</span>
+        <div class="win-tabs">
+          <button class="win-tab active" data-mode="rta">Feedback &amp; RTA</button>
+          <button class="win-tab" data-mode="tf">Transfer Function</button>
+          <button class="win-tab" data-mode="ir">Impulse Response</button>
+        </div>
+      </div>
+      <div class="mock-screen">
+        <div class="mock-readout">
+          <div>
+            <div class="mock-big" id="mockBig">2.50<small>kHz</small></div>
+            <div class="mock-sub" id="mockSub">D#7 +12&cent; &middot; nearest 1/3 octave 2.5k &middot; notch with Q 8–10</div>
+          </div>
+          <div class="pill" id="mockBadge">48 kHz &middot; 16,384-pt FFT</div>
+        </div>
+        <canvas id="demoCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <section id="features">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>Built for Live Sound &amp; System Alignment</h2>
+        <p>Zero subscriptions, zero cloud dependencies, and instant startup when you are standing at FOH or monitor world.</p>
+      </div>
+
+      <div class="grid-3">
+        <div class="card">
+          <span class="card-tag">01 &middot; Ring-Out Engine</span>
+          <h3>Acoustic Feedback Detector</h3>
+          <p>Tracks narrow-band ringing frequencies in real time, displays exact pitch, cents offset, nearest 1/3-octave ISO band, and logs repeat offenders.</p>
+        </div>
+        <div class="card">
+          <span class="card-tag">02 &middot; Dual-Channel FFT</span>
+          <h3>Transfer Function &amp; Phase</h3>
+          <p>16,384-point complex FFT with coherence blanking, fractional octave smoothing (1/3 to 1/24 oct), trace storage, and multi-trace phase comparison.</p>
+        </div>
+        <div class="card">
+          <span class="card-tag">03 &middot; Time Alignment</span>
+          <h3>Impulse &amp; Delay Finder</h3>
+          <p>Automatic peak impulse detection with sub-millisecond interpolation, distance readout in meters, and one-click reference delay insertion.</p>
+        </div>
+        <div class="card">
+          <span class="card-tag">04 &middot; Signal Generator</span>
+          <h3>Pink, White &amp; Sine</h3>
+          <p>Built-in calibrated noise and sine oscillator with internal loopback reference or dual-channel hardware interface routing.</p>
+        </div>
+        <div class="card">
+          <span class="card-tag">05 &middot; Visual Diagnostics</span>
+          <h3>Live Spectrogram &amp; RTA</h3>
+          <p>Switch between smooth curves, 1/3 to 1/24-octave bars, and a scrolling thermal spectrogram with interactive frequency/dB crosshairs.</p>
+        </div>
+        <div class="card">
+          <span class="card-tag">06 &middot; Native Performance</span>
+          <h3>macOS &amp; Windows Apps</h3>
+          <p>Dedicated desktop builds with direct audio interface selection, output device routing, and 100% offline operation.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="download">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>Download Audio Measure</h2>
+        <p>Choose your operating system below. Both versions run offline with full multi-channel audio interface support.</p>
+      </div>
+
+      <div class="dl-grid">
+        <!-- macOS Card -->
+        <div class="dl-card" id="cardMac">
+          <div class="dl-top">
+            <h3>macOS</h3>
+            <span class="pill" id="pillMac">Universal (Apple Silicon + Intel)</span>
+          </div>
+          <ul class="dl-specs">
+            <li>macOS 11 Big Sur or later (M1–M4 &amp; Intel)</li>
+            <li>Universal <code>.dmg</code> disk image</li>
+            <li>Native CoreAudio &amp; USB interface support</li>
+          </ul>
+          <div class="dl-actions">
+            <!-- UPDATE THIS HREF WITH YOUR ACTUAL .DMG DOWNLOAD LINK -->
+            <a href="downloads/Audio-Measure-by-Lunar-1.0.0-universal.dmg" class="btn btn-primary" download>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+              Download .dmg (macOS)
+            </a>
+          </div>
+        </div>
+
+        <!-- Windows Card -->
+        <div class="dl-card" id="cardWin">
+          <div class="dl-top">
+            <h3>Windows</h3>
+            <span class="pill" id="pillWin">Windows 10 / 11 (64-bit)</span>
+          </div>
+          <ul class="dl-specs">
+            <li>Windows 10 &amp; Windows 11 (x64)</li>
+            <li>Standard Installer (<code>.exe</code>) or Portable app</li>
+            <li>Full input &amp; output device routing</li>
+          </ul>
+          <div class="dl-actions">
+            <!-- UPDATE THESE HREFS WITH YOUR ACTUAL .EXE DOWNLOAD LINKS -->
+            <a href="downloads/Audio-Measure-by-Lunar-Setup-1.0.0.exe" class="btn btn-primary" download>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+              Download Installer .exe (Windows)
+            </a>
+            <a href="downloads/Audio-Measure-by-Lunar-1.0.0.exe" class="btn" download>
+              Download Portable .exe (No Install)
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <details class="help">
+        <summary>First-time launch notes (macOS Gatekeeper &amp; Windows SmartScreen)</summary>
+        <div class="help-body">
+          <div>
+            <strong>On macOS:</strong> If macOS warns that the app is from an unidentified developer, open <em>Applications</em>, <strong>Control-click (Right-click)</strong> <em>Audio Measure by Lunar</em>, and choose <strong>Open</strong> &rarr; <strong>Open</strong>. You only need to do this once.
+          </div>
+          <div>
+            <strong>On Windows:</strong> If Windows Defender SmartScreen displays <em>"Windows protected your PC"</em>, click <strong>More info</strong> and then click <strong>Run anyway</strong> to launch the installer.
+          </div>
+        </div>
+      </details>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot-row">
+    <div><strong>Audio Measure by Lunar</strong> &mdash; Developed by Kuldeep</div>
+    <div>v1.0.0 &middot; Built for Live Sound Engineers</div>
+  </div>
+</footer>
+
+<script>
+  // 1. Auto-detect visitor's OS and highlight the matching download
+  (function detectOS() {
+    const ua = navigator.userAgent || '';
+    const isMac = /Mac|iPhone|iPad/.test(ua);
+    const isWin = /Win/.test(ua);
+    const primaryBtn = document.getElementById('primaryDownloadBtn');
+    const primaryLabel = document.getElementById('primaryDownloadLabel');
+    const osHint = document.getElementById('osHint');
+
+    if (isMac) {
+      document.getElementById('cardMac').classList.add('recommended');
+      document.getElementById('pillMac').textContent = 'Recommended for your Mac';
+      primaryBtn.href = 'downloads/Audio-Measure-by-Lunar-1.0.0-universal.dmg';
+      primaryBtn.setAttribute('download', '');
+      primaryLabel.textContent = 'Download for macOS (.dmg)';
+      osHint.textContent = 'Detected macOS · Universal build for Apple Silicon (M1–M4) & Intel';
+    } else if (isWin) {
+      document.getElementById('cardWin').classList.add('recommended');
+      document.getElementById('pillWin').textContent = 'Recommended for your PC';
+      primaryBtn.href = 'downloads/Audio-Measure-by-Lunar-Setup-1.0.0.exe';
+      primaryBtn.setAttribute('download', '');
+      primaryLabel.textContent = 'Download for Windows (.exe)';
+      osHint.textContent = 'Detected Windows · 64-bit Installer for Windows 10 & 11';
+    }
+  })();
+
+  // 2. Interactive animated canvas preview matching the app's visual style
+  const canvas = document.getElementById('demoCanvas');
+  const ctx = canvas.getContext('2d');
+  let mode = 'rta';
+  let t = 0;
+
+  const readouts = {
+    rta: {
+      big: '2.50<small>kHz</small>',
+      sub: 'D#7 +12¢ · nearest 1/3 octave 2.5k · notch with Q 8–10',
+      badge: 'Feedback Alert · -14 dBFS'
+    },
+    tf: {
+      big: '+0.4<small>dB</small>',
+      sub: 'Coherence 0.98 · Phase +4° at 1.00 kHz · 1/12 oct smoothing',
+      badge: 'Transfer Function · 16,384-pt FFT'
+    },
+    ir: {
+      big: '14.28<small>ms</small>',
+      sub: '4.90 m propagation delay · Direct arrival locked',
+      badge: 'Impulse Window · 60 ms'
+    }
+  };
+
+  document.querySelectorAll('.win-tab').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.win-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      mode = btn.dataset.mode;
+      document.getElementById('mockBig').innerHTML = readouts[mode].big;
+      document.getElementById('mockSub').textContent = readouts[mode].sub;
+      document.getElementById('mockBadge').textContent = readouts[mode].badge;
+    };
+  });
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function draw() {
+    t += 0.04;
+    const w = canvas.width;
+    const h = canvas.height;
+    const dpr = window.devicePixelRatio || 1;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // Grid lines
+    ctx.strokeStyle = '#1b2527';
+    ctx.lineWidth = dpr;
+    for (let i = 1; i < 6; i++) {
+      const y = (h / 6) * i;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+    for (let i = 1; i < 10; i++) {
+      const x = (w / 10) * i;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+
+    if (mode === 'rta') {
+      const bars = 31;
+      const gap = 3 * dpr;
+      const bw = (w - gap * (bars - 1)) / bars;
+      for (let i = 0; i < bars; i++) {
+        const isFeedback = i === 21; // ~2.5 kHz band
+        const base = 0.25 + 0.2 * Math.sin(i * 0.35 + t) + 0.12 * Math.cos(i * 0.8 - t * 1.4);
+        const val = isFeedback ? 0.86 + 0.04 * Math.sin(t * 4) : Math.max(0.08, base);
+        const bh = val * (h - 16 * dpr);
+        ctx.fillStyle = isFeedback ? '#ff3b30' : 'rgba(25, 211, 197, 0.85)';
+        ctx.fillRect(i * (bw + gap), h - bh, bw, bh);
+      }
+    } else if (mode === 'tf') {
+      // Magnitude trace
+      ctx.strokeStyle = '#19d3c5';
+      ctx.lineWidth = 2.5 * dpr;
+      ctx.beginPath();
+      for (let x = 0; x <= w; x += 3 * dpr) {
+        const nx = x / w;
+        const y = h * 0.5 + Math.sin(nx * 14 + t * 0.5) * (h * 0.14) * Math.sin(nx * Math.PI) + Math.cos(nx * 32) * 4 * dpr;
+        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Coherence trace
+      ctx.strokeStyle = '#7e908e';
+      ctx.lineWidth = 1.2 * dpr;
+      ctx.beginPath();
+      for (let x = 0; x <= w; x += 4 * dpr) {
+        const nx = x / w;
+        const y = h * 0.84 - Math.sin(nx * Math.PI) * (h * 0.06);
+        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    } else {
+      // Impulse response spike
+      const peakX = w * 0.32;
+      ctx.strokeStyle = '#ff3b30';
+      ctx.lineWidth = dpr;
+      ctx.beginPath();
+      ctx.moveTo(peakX, 0);
+      ctx.lineTo(peakX, h);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#19d3c5';
+      ctx.lineWidth = 2 * dpr;
+      ctx.beginPath();
+      for (let x = 0; x <= w; x += 2 * dpr) {
+        const dist = (x - peakX) / w;
+        let amp = 0;
+        if (dist >= -0.02) {
+          amp = Math.exp(-Math.abs(dist) * 24) * Math.cos(dist * 190 - t * 0.2) * (h * 0.42);
+        }
+        const y = h * 0.5 - amp;
+        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+</script>
+</body>
+</html>
